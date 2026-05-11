@@ -12,23 +12,10 @@ import {
   setGlobalModel,
   setGlobalReasoning,
 } from '../ai/agent.js';
-import { createCharacter, switchCharacter, listCharacters, getActiveCharacter } from '../character/manager.js';
+import { createCharacter, switchCharacter, getActiveCharacter } from '../character/manager.js';
 import { readSoul } from '../character/soul.js';
 import { logger } from '../logger.js';
 import type { Attachment, Thread, Message } from 'chat';
-
-const fileState = new FileStateAdapter();
-
-export const bot = new Chat({
-  userName: 'donna',
-  adapters: {
-    discord: createDiscordAdapter(),
-  },
-  state: fileState,
-  logger: 'info',
-  fallbackStreamingPlaceholderText: '...',
-  streamingUpdateIntervalMs: 800,
-});
 
 // --- Helpers ---
 
@@ -69,14 +56,12 @@ async function processMessage(thread: Thread, message: Message) {
 
   const paired = await getPairedUser();
   if (!paired) {
-    // Not paired yet; only /pair is allowed (handled by slash commands)
     return;
   }
   if (message.author.userId !== paired) {
     return;
   }
 
-  // Check for voice/audio attachments
   const audioAttachment = message.attachments?.find(
     (a: Attachment) => a.type === 'audio' || a.mimeType?.startsWith('audio/')
   );
@@ -97,154 +82,164 @@ async function processMessage(thread: Thread, message: Message) {
   }
 }
 
-// --- Event Handlers ---
-
-bot.onNewMention(async (thread, message) => {
-  if (!thread.isDM) return;
-
-  const paired = await getPairedUser();
-  if (!paired) {
-    // If not paired, only respond to /pair (slash command)
-    return;
-  }
-  if (message.author.userId !== paired) {
-    return;
-  }
-
-  await thread.subscribe();
-  await processMessage(thread, message);
-});
-
-bot.onSubscribedMessage(async (thread, message) => {
-  if (!thread.isDM) return;
-  await processMessage(thread, message);
-});
-
-// --- Slash Commands ---
-
-bot.onSlashCommand('/pair', async (event) => {
-  const alreadyPaired = await isPaired();
-  if (alreadyPaired && !(await requirePairedUser(event.user.userId))) {
-    await event.channel.post('This Donna instance is already paired.');
-    return;
-  }
-  const code = await createPairingCode(event.user.userId);
-  await event.channel.post(`Your pairing code is: \`\`\`${code}\`\`\` (valid 10 minutes). Run \`donna pair ${code}\` on the VPS.`);
-});
-
-bot.onSlashCommand('/create', async (event) => {
-  if (!(await requirePairedUser(event.user.userId))) {
-    await event.channel.post('Unauthorized.');
-    return;
-  }
-  const name = event.text.trim();
-  if (!name) {
-    await event.channel.post('Usage: /create [name]');
-    return;
-  }
-  try {
-    await createCharacter(name);
-    const ok = await switchCharacter(name);
-    if (!ok) {
-      await event.channel.post(`Character **${name}** was created but could not be activated.`);
-      return;
-    }
-    initAgent(name);
-    await event.channel.post(`Character **${name}** created and switched.`);
-  } catch (err) {
-    logger.error('Create character failed', err);
-    await event.channel.post('Failed to create character.');
-  }
-});
-
-bot.onSlashCommand('/switch', async (event) => {
-  if (!(await requirePairedUser(event.user.userId))) {
-    await event.channel.post('Unauthorized.');
-    return;
-  }
-  const name = event.text.trim();
-  if (!name) {
-    await event.channel.post('Usage: /switch [name]');
-    return;
-  }
-  const ok = await switchCharacter(name);
-  if (!ok) {
-    await event.channel.post(`Character **${name}** does not exist.`);
-    return;
-  }
-  initAgent(name);
-  clearAllSessions();
-  await event.channel.post(`Switched to **${name}**. New session started.`);
-});
-
-bot.onSlashCommand('/soul', async (event) => {
-  if (!(await requirePairedUser(event.user.userId))) {
-    await event.channel.post('Unauthorized.');
-    return;
-  }
-  const active = await getActiveCharacter();
-  if (!active) {
-    await event.channel.post('No active character.');
-    return;
-  }
-  const soul = await readSoul(active);
-  await event.channel.post(soul ?? 'SOUL.md is empty.');
-});
-
-bot.onSlashCommand('/new', async (event) => {
-  if (!(await requirePairedUser(event.user.userId))) {
-    await event.channel.post('Unauthorized.');
-    return;
-  }
-  clearAllSessions();
-  await event.channel.post('New session started with the current character.');
-});
-
-bot.onSlashCommand('/abort', async (event) => {
-  if (!(await requirePairedUser(event.user.userId))) {
-    await event.channel.post('Unauthorized.');
-    return;
-  }
-  abortAll();
-  await event.channel.post('Abort signal sent.');
-});
-
-bot.onSlashCommand('/reasoning', async (event) => {
-  if (!(await requirePairedUser(event.user.userId))) {
-    await event.channel.post('Unauthorized.');
-    return;
-  }
-  const level = event.text.trim().toLowerCase();
-  if (!['low', 'medium', 'high'].includes(level)) {
-    await event.channel.post('Usage: /reasoning [low|medium|high]');
-    return;
-  }
-  setGlobalReasoning(level as 'low' | 'medium' | 'high');
-  await event.channel.post(`Reasoning set to **${level}**.`);
-});
-
-bot.onSlashCommand('/model', async (event) => {
-  if (!(await requirePairedUser(event.user.userId))) {
-    await event.channel.post('Unauthorized.');
-    return;
-  }
-  const choice = event.text.trim().toLowerCase();
-  if (!['flash', 'pro'].includes(choice)) {
-    await event.channel.post('Usage: /model [flash|pro]');
-    return;
-  }
-  setGlobalModel(choice as 'flash' | 'pro');
-  await event.channel.post(`Model switched to **${choice}**.`);
-});
-
-// Catch-all for unhandled slash commands
-bot.onSlashCommand(async (event) => {
-  logger.info(`Unhandled slash command: ${event.command} from ${event.user.userId}`);
-});
-
 // --- Lifecycle ---
 
 export async function startBot() {
+  const fileState = new FileStateAdapter();
+  const bot = new Chat({
+    userName: 'donna',
+    adapters: {
+      discord: createDiscordAdapter(),
+    },
+    state: fileState,
+    logger: 'info',
+    fallbackStreamingPlaceholderText: '...',
+    streamingUpdateIntervalMs: 800,
+  });
+
+  // --- Event Handlers ---
+
+  bot.onNewMention(async (thread, message) => {
+    if (!thread.isDM) return;
+
+    const paired = await getPairedUser();
+    if (!paired) {
+      return;
+    }
+    if (message.author.userId !== paired) {
+      return;
+    }
+
+    await thread.subscribe();
+    await processMessage(thread, message);
+  });
+
+  bot.onSubscribedMessage(async (thread, message) => {
+    if (!thread.isDM) return;
+    await processMessage(thread, message);
+  });
+
+  // --- Slash Commands ---
+
+  bot.onSlashCommand('/pair', async (event) => {
+    const alreadyPaired = await isPaired();
+    if (alreadyPaired && !(await requirePairedUser(event.user.userId))) {
+      await event.channel.post('This Donna instance is already paired.');
+      return;
+    }
+    const code = await createPairingCode(event.user.userId);
+    await event.channel.post(`Your pairing code is: \`\`\`${code}\`\`\` (valid 10 minutes). Run \`donna pair ${code}\` on the VPS.`);
+  });
+
+  bot.onSlashCommand('/create', async (event) => {
+    if (!(await requirePairedUser(event.user.userId))) {
+      await event.channel.post('Unauthorized.');
+      return;
+    }
+    const name = event.text.trim();
+    if (!name) {
+      await event.channel.post('Usage: /create [name]');
+      return;
+    }
+    try {
+      await createCharacter(name);
+      const ok = await switchCharacter(name);
+      if (!ok) {
+        await event.channel.post(`Character **${name}** was created but could not be activated.`);
+        return;
+      }
+      initAgent(name);
+      await event.channel.post(`Character **${name}** created and switched.`);
+    } catch (err) {
+      logger.error('Create character failed', err);
+      await event.channel.post('Failed to create character.');
+    }
+  });
+
+  bot.onSlashCommand('/switch', async (event) => {
+    if (!(await requirePairedUser(event.user.userId))) {
+      await event.channel.post('Unauthorized.');
+      return;
+    }
+    const name = event.text.trim();
+    if (!name) {
+      await event.channel.post('Usage: /switch [name]');
+      return;
+    }
+    const ok = await switchCharacter(name);
+    if (!ok) {
+      await event.channel.post(`Character **${name}** does not exist.`);
+      return;
+    }
+    initAgent(name);
+    clearAllSessions();
+    await event.channel.post(`Switched to **${name}**. New session started.`);
+  });
+
+  bot.onSlashCommand('/soul', async (event) => {
+    if (!(await requirePairedUser(event.user.userId))) {
+      await event.channel.post('Unauthorized.');
+      return;
+    }
+    const active = await getActiveCharacter();
+    if (!active) {
+      await event.channel.post('No active character.');
+      return;
+    }
+    const soul = await readSoul(active);
+    await event.channel.post(soul ?? 'SOUL.md is empty.');
+  });
+
+  bot.onSlashCommand('/new', async (event) => {
+    if (!(await requirePairedUser(event.user.userId))) {
+      await event.channel.post('Unauthorized.');
+      return;
+    }
+    clearAllSessions();
+    await event.channel.post('New session started with the current character.');
+  });
+
+  bot.onSlashCommand('/abort', async (event) => {
+    if (!(await requirePairedUser(event.user.userId))) {
+      await event.channel.post('Unauthorized.');
+      return;
+    }
+    abortAll();
+    await event.channel.post('Abort signal sent.');
+  });
+
+  bot.onSlashCommand('/reasoning', async (event) => {
+    if (!(await requirePairedUser(event.user.userId))) {
+      await event.channel.post('Unauthorized.');
+      return;
+    }
+    const level = event.text.trim().toLowerCase();
+    if (!['low', 'medium', 'high'].includes(level)) {
+      await event.channel.post('Usage: /reasoning [low|medium|high]');
+      return;
+    }
+    setGlobalReasoning(level as 'low' | 'medium' | 'high');
+    await event.channel.post(`Reasoning set to **${level}**.`);
+  });
+
+  bot.onSlashCommand('/model', async (event) => {
+    if (!(await requirePairedUser(event.user.userId))) {
+      await event.channel.post('Unauthorized.');
+      return;
+    }
+    const choice = event.text.trim().toLowerCase();
+    if (!['flash', 'pro'].includes(choice)) {
+      await event.channel.post('Usage: /model [flash|pro]');
+      return;
+    }
+    setGlobalModel(choice as 'flash' | 'pro');
+    await event.channel.post(`Model switched to **${choice}**.`);
+  });
+
+  bot.onSlashCommand(async (event) => {
+    logger.info(`Unhandled slash command: ${event.command} from ${event.user.userId}`);
+  });
+
   await bot.initialize();
   await fileState.connect();
 
@@ -256,7 +251,6 @@ export async function startBot() {
   const discord = bot.getAdapter('discord') as DiscordAdapter;
   logger.info('Starting Discord Gateway listener...');
 
-  // Persistent Gateway loop
   while (true) {
     try {
       await discord.startGatewayListener({}, 10 * 60 * 1000);
