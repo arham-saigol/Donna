@@ -1,0 +1,34 @@
+{
+  "name": "donna",
+  "version": "1.0.0",
+  "description": "Donna — a private, self-hosted personal AI experience.",
+  "main": "dist/cli.js",
+  "type": "module",
+  "bin": {
+    "donna": "dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/cli.ts",
+    "start": "node dist/daemon.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@ai-sdk/deepgram": "latest",
+    "@ai-sdk/deepseek": "latest",
+    "@chat-adapter/discord": "latest",
+    "ai": "latest",
+    "chat": "latest",
+    "dotenv": "latest",
+    "zod": "latest"
+  },
+  "devDependencies": {
+    "@types/node": "latest",
+    "tsx": "latest",
+    "typescript": "latest"
+  },
+  "keywords": ["ai", "discord", "bot", "personal"],
+  "license": "MIT"
+}
