@@ -16,8 +16,8 @@ function removePid() {
     if (existsSync(PID_FILE)) {
       unlinkSync(PID_FILE);
     }
-  } catch {
-    // ignore
+  } catch (err) {
+    logger.error('Failed to remove PID file', err);
   }
 }
 
@@ -32,11 +32,13 @@ process.on('SIGINT', shutdown);
 
 process.on('uncaughtException', (err: Error) => {
   logger.error('Uncaught exception', err);
+  removePid();
   process.exit(1);
 });
 
 process.on('unhandledRejection', (err: unknown) => {
   logger.error('Unhandled rejection', err);
+  removePid();
   process.exit(1);
 });
 
