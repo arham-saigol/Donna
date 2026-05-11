@@ -49,7 +49,7 @@ class ThreadSession {
     }
 
     this.running = true;
-      this.abortController = new globalThis.AbortController();
+    this.abortController = new globalThis.AbortController();
 
     try {
       const model = getCurrentModel(this.modelType);

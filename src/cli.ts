@@ -11,7 +11,7 @@ import {
   PAIRED_USER_FILE,
   ACTIVE_CHARACTER_FILE,
   ROOT,
-  DATA_DIR,
+  LOG_FILE,
 } from './config.js';
 import { validatePairingCode, getPairedUser } from './pairing.js';
 import { getActiveCharacter } from './character/manager.js';
@@ -62,13 +62,27 @@ async function setupWizard() {
     console.log('ffmpeg: OK');
   } catch {
     console.warn('ffmpeg not found. Donna voice support requires ffmpeg.');
-    const install = await rl.question('Try to install ffmpeg via apt? (y/n): ');
-    if (install.trim().toLowerCase() === 'y') {
-      try {
-        execSync('sudo apt-get update && sudo apt-get install -y ffmpeg', { stdio: 'inherit' });
-      } catch {
-        console.error('Failed to install ffmpeg. Please install it manually: sudo apt-get install ffmpeg');
+    const platform = process.platform;
+    if (platform === 'linux') {
+      const install = await rl.question('Try to install ffmpeg via apt? (y/n): ');
+      if (install.trim().toLowerCase() === 'y') {
+        try {
+          execSync('sudo apt-get update && sudo apt-get install -y ffmpeg', { stdio: 'inherit' });
+        } catch (err) {
+          console.error(`Failed to install ffmpeg. Install manually: sudo apt-get install ffmpeg\n${err}`);
+        }
       }
+    } else if (platform === 'darwin') {
+      const install = await rl.question('Try to install ffmpeg via brew? (y/n): ');
+      if (install.trim().toLowerCase() === 'y') {
+        try {
+          execSync('brew install ffmpeg', { stdio: 'inherit' });
+        } catch (err) {
+          console.error(`Failed to install ffmpeg. Install manually: brew install ffmpeg\n${err}`);
+        }
+      }
+    } else {
+      console.warn('Please install ffmpeg manually. On Windows: choco install ffmpeg (or download from https://ffmpeg.org/download.html)');
     }
   }
 
@@ -91,7 +105,22 @@ async function setupWizard() {
   if (discordAppId) envLines.push(`DISCORD_APPLICATION_ID=${discordAppId}`);
 
   if (envLines.length > 0) {
-    await writeFile(join(ROOT, '.env'), envLines.join('\n') + '\n', 'utf-8');
+    const envPath = join(ROOT, '.env');
+    const existingMap = new Map<string, string>();
+    try {
+      const existing = await readFile(envPath, 'utf-8');
+      for (const line of existing.split('\n')) {
+        const eq = line.indexOf('=');
+        if (eq > 0) existingMap.set(line.slice(0, eq), line);
+      }
+    } catch {
+      // No existing .env
+    }
+    for (const line of envLines) {
+      const eq = line.indexOf('=');
+      if (eq > 0) existingMap.set(line.slice(0, eq), line);
+    }
+    await writeFile(envPath, [...existingMap.values()].join('\n') + '\n', 'utf-8');
     console.log('\nSaved to .env');
   } else {
     console.log('\nNo keys provided — skipped saving .env');
@@ -115,14 +144,6 @@ async function startDaemon() {
     stdio: 'ignore',
   });
   child.unref();
-
-  // Write PID after a brief delay so daemon can also write it
-  await new Promise((r) => setTimeout(r, 500));
-  try {
-    await writeFile(PID_FILE, String(child.pid), 'utf-8');
-  } catch {
-    // ignore
-  }
 
   console.log(`Donna daemon started (PID ${child.pid}).`);
 }
@@ -165,7 +186,7 @@ async function showStatus() {
 // --- logs ---
 
 async function tailLogs() {
-  const logPath = join(DATA_DIR, 'logs', 'donna.log');
+  const logPath = LOG_FILE;
   if (!existsSync(logPath)) {
     console.log('No log file found.');
     return;

@@ -1,6 +1,7 @@
 import { mkdirSync } from 'node:fs';
-import { access, readFile, writeFile, unlink, readdir, stat } from 'node:fs/promises';
+import { access, readFile, writeFile, unlink, readdir } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
+import { CHARACTERS_DIR } from '../config.js';
 
 export function ensureDir(dir: string) {
   mkdirSync(dir, { recursive: true });
@@ -59,8 +60,6 @@ export async function writeJson(path: string, data: unknown) {
   ensureDir(dirname(path));
   await writeFile(path, JSON.stringify(data, null, 2), 'utf-8');
 }
-
-import { CHARACTERS_DIR } from '../config.js';
 
 export function resolveCharacterDir(name: string): string {
   return join(CHARACTERS_DIR, name);

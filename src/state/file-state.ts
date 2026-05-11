@@ -175,13 +175,16 @@ export class FileStateAdapter implements StateAdapter {
   async dequeue(threadId: string): Promise<QueueEntry | null> {
     const path = resolvePath(`queue_${safeFileName(threadId)}.json`);
     const items = readJsonFile<QueueEntry[]>(path) ?? [];
-    if (items.length === 0) return null;
-    const entry = items.shift()!;
-    writeJsonFile(path, items);
-    if (entry.expiresAt && nowMs() > entry.expiresAt) {
-      return this.dequeue(threadId);
+    let entry: QueueEntry | undefined;
+    while (items.length > 0) {
+      entry = items.shift()!;
+      if (!entry.expiresAt || nowMs() <= entry.expiresAt) {
+        writeJsonFile(path, items);
+        return entry;
+      }
     }
-    return entry;
+    writeJsonFile(path, items);
+    return null;
   }
 
   async queueDepth(threadId: string): Promise<number> {

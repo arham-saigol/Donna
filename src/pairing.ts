@@ -12,20 +12,23 @@ function generateCode(): string {
   return randomBytes(3).toString('hex').toUpperCase();
 }
 
-export async function createPairingCode(discordUserId: string): Promise<string> {
-  const codes = (await readJson<Record<string, PairingCode>>(PAIRING_CODES_FILE)) ?? {};
-  // Clean expired codes
+function cleanExpiredCodes(codes: Record<string, PairingCode>): void {
   const now = Date.now();
   for (const key of Object.keys(codes)) {
     if (codes[key].expiresAt < now) {
       delete codes[key];
     }
   }
+}
+
+export async function createPairingCode(discordUserId: string): Promise<string> {
+  const codes = (await readJson<Record<string, PairingCode>>(PAIRING_CODES_FILE)) ?? {};
+  cleanExpiredCodes(codes);
   const code = generateCode();
   codes[code] = {
     code,
     discordUserId,
-    expiresAt: now + 10 * 60 * 1000, // 10 minutes
+    expiresAt: Date.now() + 10 * 60 * 1000, // 10 minutes
   };
   await writeJson(PAIRING_CODES_FILE, codes);
   return code;
@@ -33,10 +36,9 @@ export async function createPairingCode(discordUserId: string): Promise<string> 
 
 export async function validatePairingCode(code: string): Promise<string | null> {
   const codes = (await readJson<Record<string, PairingCode>>(PAIRING_CODES_FILE)) ?? {};
+  cleanExpiredCodes(codes);
   const entry = codes[code.toUpperCase().trim()];
-  if (!entry) return null;
-  if (entry.expiresAt < Date.now()) {
-    delete codes[code.toUpperCase().trim()];
+  if (!entry) {
     await writeJson(PAIRING_CODES_FILE, codes);
     return null;
   }

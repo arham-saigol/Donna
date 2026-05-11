@@ -1,13 +1,13 @@
 import { createDeepSeek, deepseek } from '@ai-sdk/deepseek';
 import { createGateway, gateway } from 'ai';
-import { env } from '../config.js';
+import { requireEnv } from '../config.js';
 
 const flashProvider = createDeepSeek({
-  apiKey: env('DEEPSEEK_API_KEY') ?? '',
+  apiKey: requireEnv('DEEPSEEK_API_KEY'),
 });
 
 const proProvider = createGateway({
-  apiKey: env('AI_GATEWAY_API_KEY') ?? '',
+  apiKey: requireEnv('AI_GATEWAY_API_KEY'),
 });
 
 export function getFlashModel() {

@@ -1,9 +1,14 @@
-import { join } from 'node:path';
+import { join, dirname, sep } from 'node:path';
 import { CHARACTERS_DIR } from '../config.js';
 import { readFileUtf8, writeFileUtf8, deleteFile, fileExists, ensureDir } from '../utils/files.js';
 
 function resolveMemoryPath(character: string, filePath: string): string {
-  return join(CHARACTERS_DIR, character, 'memory', filePath);
+  const basePath = join(CHARACTERS_DIR, character, 'memory');
+  const fullPath = join(basePath, filePath);
+  if (!fullPath.startsWith(basePath + sep)) {
+    throw new Error(`Invalid memory path: ${filePath}`);
+  }
+  return fullPath;
 }
 
 function resolveIndexPath(character: string): string {
@@ -35,8 +40,6 @@ export async function writeMemory(
     throw new Error('Title is required when creating a new memory file.');
   }
 
-  // Ensure parent directory exists
-  const { dirname } = await import('node:path');
   ensureDir(dirname(fullPath));
 
   await writeFileUtf8(fullPath, content);

@@ -144,7 +144,11 @@ bot.onSlashCommand('/create', async (event) => {
   }
   try {
     await createCharacter(name);
-    await switchCharacter(name);
+    const ok = await switchCharacter(name);
+    if (!ok) {
+      await event.channel.post(`Character **${name}** was created but could not be activated.`);
+      return;
+    }
     initAgent(name);
     await event.channel.post(`Character **${name}** created and switched.`);
   } catch (err) {

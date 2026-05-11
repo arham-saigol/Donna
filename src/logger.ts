@@ -1,12 +1,13 @@
 import { mkdirSync } from 'node:fs';
 import { createWriteStream } from 'node:fs';
-import { join } from 'node:path';
-import { DATA_DIR, LOGS_DIR } from './config.js';
+import { LOGS_DIR, LOG_FILE } from './config.js';
 
-const logPath = join(LOGS_DIR, 'donna.log');
 mkdirSync(LOGS_DIR, { recursive: true });
 
-const stream = createWriteStream(logPath, { flags: 'a' });
+const stream = createWriteStream(LOG_FILE, { flags: 'a' });
+stream.on('error', (err) => {
+  console.error(`[logger] write stream error: ${err.message}`);
+});
 
 function write(level: string, message: string, meta?: unknown) {
   const entry = {

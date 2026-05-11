@@ -25,8 +25,12 @@ export async function patchSoul(character: string, oldText: string, newText: str
   if (oldText === '') {
     content += newText;
   } else {
-    if (!content.includes(oldText)) {
+    const occurrences = content.split(oldText).length - 1;
+    if (occurrences === 0) {
       throw new Error(`Could not find the exact text to replace in SOUL.md.`);
+    }
+    if (occurrences > 1) {
+      throw new Error(`Found ${occurrences} occurrences of the text in SOUL.md; provide a more specific match.`);
     }
     content = content.replace(oldText, newText);
   }

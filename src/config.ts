@@ -14,6 +14,7 @@ export const PID_FILE = join(DATA_DIR, 'donna.pid');
 export const PAIRED_USER_FILE = join(DATA_DIR, 'paired-user.json');
 export const ACTIVE_CHARACTER_FILE = join(DATA_DIR, 'active-character.json');
 export const PAIRING_CODES_FILE = join(DATA_DIR, 'pairing-codes.json');
+export const LOG_FILE = join(LOGS_DIR, 'donna.log');
 
 export function env(key: string): string | undefined {
   return process.env[key];

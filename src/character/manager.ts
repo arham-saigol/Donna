@@ -1,7 +1,7 @@
 import { readdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { ACTIVE_CHARACTER_FILE, CHARACTERS_DIR } from '../config.js';
-import { ensureDir, readJson, writeJson, writeFileUtf8 } from '../utils/files.js';
+import { ensureDir, readJson, writeJson, writeFileUtf8, fileExists } from '../utils/files.js';
 
 export async function getActiveCharacter(): Promise<string | null> {
   const data = await readJson<{ name: string }>(ACTIVE_CHARACTER_FILE);
@@ -47,7 +47,6 @@ export async function createCharacter(name: string): Promise<void> {
 
 export async function switchCharacter(name: string): Promise<boolean> {
   const charDir = join(CHARACTERS_DIR, name);
-  const { fileExists } = await import('../utils/files.js');
   if (!(await fileExists(join(charDir, 'SOUL.md')))) {
     return false;
   }
