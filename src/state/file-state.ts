@@ -104,14 +104,18 @@ export class FileStateAdapter implements StateAdapter {
 
   async appendToList(key: string, value: unknown, options?: { maxLength?: number; ttlMs?: number }): Promise<void> {
     const path = resolvePath(`list_${safeFileName(key)}.json`);
-    let items = await this.getList<unknown>(key);
+    const existing = readJsonFile<{ items: unknown[]; expiresAt?: number }>(path) ?? { items: [] };
+    const now = nowMs();
+    const items = (existing.expiresAt && now > existing.expiresAt) ? [] : (existing.items ?? []);
     items.push(value);
-    if (options?.maxLength && items.length > options.maxLength) {
-      items = items.slice(-options.maxLength);
-    }
-    const entry: { items: unknown[]; expiresAt?: number } = { items };
+    const trimmed = (options?.maxLength && items.length > options.maxLength)
+      ? items.slice(-options.maxLength)
+      : items;
+    const entry: { items: unknown[]; expiresAt?: number } = { items: trimmed };
     if (options?.ttlMs && options.ttlMs > 0) {
-      entry.expiresAt = nowMs() + options.ttlMs;
+      entry.expiresAt = now + options.ttlMs;
+    } else if (existing.expiresAt && now <= existing.expiresAt) {
+      entry.expiresAt = existing.expiresAt;
     }
     writeJsonFile(path, entry);
   }
@@ -182,7 +186,10 @@ export class FileStateAdapter implements StateAdapter {
 
   async enqueue(threadId: string, entry: QueueEntry, maxSize: number): Promise<number> {
     const path = resolvePath(`queue_${safeFileName(threadId)}.json`);
-    const items = readJsonFile<QueueEntry[]>(path) ?? [];
+    const now = nowMs();
+    const items = (readJsonFile<QueueEntry[]>(path) ?? []).filter(
+      (item) => !item.expiresAt || now <= item.expiresAt
+    );
     items.push(entry);
     if (items.length > maxSize) {
       items.shift();
@@ -208,7 +215,10 @@ export class FileStateAdapter implements StateAdapter {
 
   async queueDepth(threadId: string): Promise<number> {
     const path = resolvePath(`queue_${safeFileName(threadId)}.json`);
-    const items = readJsonFile<QueueEntry[]>(path) ?? [];
+    const now = nowMs();
+    const items = (readJsonFile<QueueEntry[]>(path) ?? []).filter(
+      (item) => !item.expiresAt || now <= item.expiresAt
+    );
     return items.length;
   }
 }
