@@ -1,19 +1,20 @@
 import { mkdirSync } from 'node:fs';
-import { readFileSync, writeFileSync, unlinkSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, unlinkSync } from 'node:fs';
 import { join } from 'node:path';
 import type { Lock, Message, QueueEntry, StateAdapter } from 'chat';
 import { STATE_DIR } from '../config.js';
 
 function safeFileName(id: string): string {
-  return id.replace(/[^a-zA-Z0-9_-]/g, '_');
+  return Buffer.from(id).toString('base64url');
 }
 
 function readJsonFile<T>(path: string): T | null {
   try {
     const data = readFileSync(path, 'utf-8');
     return JSON.parse(data) as T;
-  } catch {
-    return null;
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') return null;
+    throw err;
   }
 }
 
@@ -29,6 +30,11 @@ function resolvePath(...parts: string[]): string {
   return join(STATE_DIR, ...parts);
 }
 
+/**
+ * File-based state adapter. Designed for single-process use only;
+ * concurrent access from multiple processes can cause lost writes on
+ * read-modify-write operations (appendToList, subscribe, enqueue, etc.).
+ */
 export class FileStateAdapter implements StateAdapter {
   constructor() {
     mkdirSync(STATE_DIR, { recursive: true });
@@ -69,14 +75,20 @@ export class FileStateAdapter implements StateAdapter {
 
   async setIfNotExists(key: string, value: unknown, ttlMs?: number): Promise<boolean> {
     const path = resolvePath(`${safeFileName(key)}.json`);
-    if (existsSync(path)) {
+    const entry: { value: unknown; expiresAt?: number } = { value };
+    if (ttlMs && ttlMs > 0) entry.expiresAt = nowMs() + ttlMs;
+    try {
+      writeFileSync(path, JSON.stringify(entry, null, 2), { encoding: 'utf-8', flag: 'wx' });
+      return true;
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code !== 'EEXIST') throw err;
       const existing = readJsonFile<{ expiresAt?: number }>(path);
-      if (existing && (!existing.expiresAt || nowMs() <= existing.expiresAt)) {
-        return false;
+      if (!existing || (existing.expiresAt !== undefined && nowMs() > existing.expiresAt)) {
+        writeJsonFile(path, entry);
+        return true;
       }
+      return false;
     }
-    await this.set(key, value, ttlMs);
-    return true;
   }
 
   async getList<T = unknown>(key: string): Promise<T[]> {
@@ -127,20 +139,27 @@ export class FileStateAdapter implements StateAdapter {
 
   async acquireLock(threadId: string, ttlMs: number): Promise<Lock | null> {
     const path = resolvePath(`lock_${safeFileName(threadId)}.json`);
-    const existing = readJsonFile<{ token: string; expiresAt: number }>(path);
-    if (existing && nowMs() < existing.expiresAt) {
-      return null;
-    }
     const token = `${threadId}-${nowMs()}-${Math.random().toString(36).slice(2)}`;
     const lock: Lock = { threadId, token, expiresAt: nowMs() + ttlMs };
-    writeJsonFile(path, { token, expiresAt: lock.expiresAt });
-    return lock;
+    const entry = { token, expiresAt: lock.expiresAt };
+    try {
+      writeFileSync(path, JSON.stringify(entry, null, 2), { encoding: 'utf-8', flag: 'wx' });
+      return lock;
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code !== 'EEXIST') throw err;
+      const existing = readJsonFile<{ token: string; expiresAt: number }>(path);
+      if (existing && nowMs() < existing.expiresAt) {
+        return null;
+      }
+      writeJsonFile(path, entry);
+      return lock;
+    }
   }
 
   async extendLock(lock: Lock, ttlMs: number): Promise<boolean> {
     const path = resolvePath(`lock_${safeFileName(lock.threadId)}.json`);
     const existing = readJsonFile<{ token: string; expiresAt: number }>(path);
-    if (!existing || existing.token !== lock.token) {
+    if (!existing || existing.token !== lock.token || existing.expiresAt <= nowMs()) {
       return false;
     }
     const newExpires = nowMs() + ttlMs;

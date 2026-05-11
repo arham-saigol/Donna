@@ -19,6 +19,10 @@ function escapeMarkdownLink(text: string): string {
   return text.replace(/\]/g, '\\]');
 }
 
+function escapeMarkdownUrl(filePath: string): string {
+  return filePath.replace(/[() [\]]/g, (c) => encodeURIComponent(c));
+}
+
 export async function getMemoryIndex(character: string): Promise<string | null> {
   return readFileUtf8(resolveIndexPath(character));
 }
@@ -48,8 +52,9 @@ export async function writeMemory(
   const indexPath = resolveIndexPath(character);
   let index = (await readFileUtf8(indexPath)) ?? '# Memory Index\n\n## Files\n\n';
 
-  const linkLine = `- [${escapeMarkdownLink(title ?? filePath)}](${filePath})`;
-  const fileLinkPattern = new RegExp(`- \\[[^\\]]*\\]\\(${filePath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\)`);
+  const encodedPath = escapeMarkdownUrl(filePath);
+  const linkLine = `- [${escapeMarkdownLink(title ?? filePath)}](${encodedPath})`;
+  const fileLinkPattern = new RegExp(`- \\[[^\\]]*\\]\\(${encodedPath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\)`);
 
   if (fileLinkPattern.test(index)) {
     // Update existing entry title if provided
@@ -72,7 +77,8 @@ export async function deleteMemory(character: string, filePath: string): Promise
   let index = await readFileUtf8(indexPath);
   if (!index) return;
 
-  const fileLinkPattern = new RegExp(`- \\[[^\\]]*\\]\\(${filePath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\)\\n?`);
+  const encodedPath = escapeMarkdownUrl(filePath);
+  const fileLinkPattern = new RegExp(`- \\[[^\\]]*\\]\\(${encodedPath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\)\\n?`);
   index = index.replace(fileLinkPattern, '');
   await writeFileUtf8(indexPath, index);
 }

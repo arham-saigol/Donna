@@ -143,9 +143,13 @@ async function startDaemon() {
     detached: true,
     stdio: 'ignore',
   });
-  child.unref();
-
-  console.log(`Donna daemon started (PID ${child.pid}).`);
+  if (child && typeof child.pid === 'number') {
+    child.unref();
+    console.log(`Donna daemon started (PID ${child.pid}).`);
+  } else {
+    console.error(`Failed to start Donna daemon (${daemonPath}).`);
+    process.exit(1);
+  }
 }
 
 // --- stop ---
