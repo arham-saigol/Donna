@@ -85,6 +85,7 @@ async function processMessage(thread: Thread, message: Message) {
 // --- Lifecycle ---
 
 export async function startBot() {
+  console.log("step 3");
   const fileState = new FileStateAdapter();
   const bot = new Chat({
     userName: 'donna',

@@ -1,3 +1,4 @@
+console.log("step 1");
 import { writeFileSync, unlinkSync, existsSync } from 'node:fs';
 import { startBot } from './discord/bot.js';
 import { PID_FILE } from './config.js';
@@ -45,6 +46,7 @@ process.on('unhandledRejection', (err: unknown) => {
 writePid();
 logger.info(`Donna daemon started (PID ${process.pid})`);
 
+console.log("step 2");
 try {
   await startBot();
 } catch (err) {
