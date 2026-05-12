@@ -89,6 +89,9 @@ export async function startBot() {
   const fileState = new FileStateAdapter();
   console.log("step 3.1 - FileStateAdapter created");
   console.log("step 3.1a - about to call createDiscordAdapter()");
+  console.log("  DISCORD_BOT_TOKEN:", process.env.DISCORD_BOT_TOKEN ? "set" : "MISSING");
+  console.log("  DISCORD_PUBLIC_KEY:", process.env.DISCORD_PUBLIC_KEY ? "set" : "MISSING");
+  console.log("  DISCORD_APPLICATION_ID:", process.env.DISCORD_APPLICATION_ID ? "set" : "MISSING");
   const discordAdapter = createDiscordAdapter();
   console.log("step 3.1b - createDiscordAdapter() done");
   const bot = new Chat({
