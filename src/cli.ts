@@ -15,6 +15,7 @@ import {
 } from './config.js';
 import { validatePairingCode, getPairedUser } from './pairing.js';
 import { getActiveCharacter } from './character/manager.js';
+import { registerCommands } from './discord/register-commands.js';
 import { logger } from './logger.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -237,6 +238,18 @@ async function cliPair(code: string) {
   }
 }
 
+// --- register-commands ---
+
+async function cliRegisterCommands(argv: string[]) {
+  const guildFlagIndex = argv.indexOf('--guild');
+  const guildId = guildFlagIndex !== -1 ? argv[guildFlagIndex + 1] : undefined;
+  if (guildFlagIndex !== -1 && !guildId) {
+    console.error('Usage: donna register-commands [--guild <GUILD_ID>]');
+    process.exit(1);
+  }
+  await registerCommands(guildId);
+}
+
 // --- help ---
 
 function showHelp() {
@@ -245,13 +258,14 @@ function showHelp() {
 Usage: donna <command>
 
 Commands:
-  setup              Interactive onboarding wizard
-  start              Start the Donna daemon
-  stop               Stop the Donna daemon
-  status             Show daemon status
-  logs               Tail recent daemon logs
-  pair [CODE]        Complete pairing using Discord code
-  help               Show this help
+  setup                           Interactive onboarding wizard
+  start                           Start the Donna daemon
+  stop                            Stop the Donna daemon
+  status                          Show daemon status
+  logs                            Tail recent daemon logs
+  pair [CODE]                     Complete pairing using Discord code
+  register-commands [--guild ID]  Register Discord slash commands
+  help                            Show this help
 `);
 }
 
@@ -276,6 +290,9 @@ async function main() {
       break;
     case 'pair':
       await cliPair(args[1] ?? '');
+      break;
+    case 'register-commands':
+      await cliRegisterCommands(args.slice(1));
       break;
     case 'help':
     default:
