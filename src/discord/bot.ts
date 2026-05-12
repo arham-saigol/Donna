@@ -85,15 +85,8 @@ async function processMessage(thread: Thread, message: Message) {
 // --- Lifecycle ---
 
 export async function startBot() {
-  console.log("step 3");
   const fileState = new FileStateAdapter();
-  console.log("step 3.1 - FileStateAdapter created");
-  console.log("step 3.1a - about to call createDiscordAdapter()");
-  console.log("  DISCORD_BOT_TOKEN:", process.env.DISCORD_BOT_TOKEN ? "set" : "MISSING");
-  console.log("  DISCORD_PUBLIC_KEY:", process.env.DISCORD_PUBLIC_KEY ? "set" : "MISSING");
-  console.log("  DISCORD_APPLICATION_ID:", process.env.DISCORD_APPLICATION_ID ? "set" : "MISSING");
   const discordAdapter = createDiscordAdapter();
-  console.log("step 3.1b - createDiscordAdapter() done");
   const bot = new Chat({
     userName: 'donna',
     adapters: {
@@ -104,7 +97,6 @@ export async function startBot() {
     fallbackStreamingPlaceholderText: '...',
     streamingUpdateIntervalMs: 800,
   });
-  console.log("step 3.2 - Chat created");
 
   // --- Event Handlers ---
 
@@ -248,36 +240,116 @@ export async function startBot() {
   bot.onSlashCommand(async (event) => {
     logger.info(`Unhandled slash command: ${event.command} from ${event.user.userId}`);
   });
-  console.log("step 3.3 - event handlers registered");
 
   await bot.initialize();
-  console.log("step 3.4 - bot.initialize() done");
   await fileState.connect();
-  console.log("step 3.5 - fileState.connect() done");
 
   const active = await getActiveCharacter();
-  console.log("step 3.6 - getActiveCharacter() done, active:", active);
   if (active) {
     initAgent(active);
   }
 
   const discord = bot.getAdapter('discord') as DiscordAdapter;
-  console.log("step 3.7 - discord adapter retrieved:", discord != null);
+
+  // The adapter's setupLegacyGatewayHandlers only registers MessageCreate and
+  // reaction events. Slash commands arrive via Gateway as INTERACTION_CREATE but
+  // have no handler, so Discord times out with "application did not respond".
+  // Patch the instance to also handle interactionCreate.
+  //
+  // Both methods are private API accessed via `as any`. Guard their existence so
+  // a future @chat-adapter/discord update that renames them surfaces a clear
+  // warning instead of a silent failure.
+  const adapterAny = discord as any;
+  if (
+    typeof adapterAny.setupLegacyGatewayHandlers !== 'function' ||
+    typeof adapterAny.handleApplicationCommandInteraction !== 'function'
+  ) {
+    logger.warn(
+      'Cannot patch Discord adapter for Gateway slash command support: ' +
+      'setupLegacyGatewayHandlers or handleApplicationCommandInteraction not found. ' +
+      'Slash commands will not respond until @chat-adapter/discord exposes these methods.'
+    );
+  } else {
+    const _origSetup = adapterAny.setupLegacyGatewayHandlers.bind(adapterAny);
+    adapterAny.setupLegacyGatewayHandlers = function (client: any, isShuttingDown: () => boolean) {
+      _origSetup(client, isShuttingDown);
+
+      client.on('interactionCreate', async (interaction: any) => {
+        if (isShuttingDown()) return;
+        if (!interaction.isChatInputCommand()) return;
+
+        logger.info('Slash command received via Gateway', {
+          command: interaction.commandName,
+          userId: interaction.user?.id,
+        });
+
+        // Acknowledge within Discord's 3-second window to avoid "application did not respond"
+        try {
+          await fetch(
+            `https://discord.com/api/v10/interactions/${interaction.id}/${interaction.token}/callback`,
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ type: 5 }), // DeferredChannelMessageWithSource
+            },
+          );
+        } catch (err) {
+          logger.error('Failed to acknowledge slash command interaction', err);
+          return;
+        }
+
+        // Build a Discord API-shaped object so handleApplicationCommandInteraction
+        // can set up the request context and call processSlashCommand correctly.
+        const rawUser = {
+          id: interaction.user.id,
+          username: interaction.user.username,
+          global_name: interaction.user.globalName ?? null,
+          bot: interaction.user.bot ?? false,
+        };
+        const rawInteraction = {
+          id: interaction.id,
+          token: interaction.token,
+          data: {
+            name: interaction.commandName,
+            options: interaction.options?.data ?? [],
+          },
+          member: interaction.member
+            ? { user: rawUser }
+            : undefined,
+          user: rawUser,
+          channel_id: interaction.channelId,
+          guild_id: interaction.guildId ?? null,
+          channel: interaction.channel
+            ? { type: interaction.channel.type, parent_id: interaction.channel.parentId ?? null }
+            : null,
+        };
+
+        try {
+          await adapterAny.handleApplicationCommandInteraction(rawInteraction, {});
+        } catch (err) {
+          logger.error('Failed to process slash command interaction', {
+            command: interaction.commandName,
+            error: err,
+          });
+        }
+      });
+    };
+  }
+
   logger.info('Starting Discord Gateway listener...');
 
   while (true) {
-    console.log("step 3.8 - entering gateway loop iteration");
     try {
       let gatewayPromise: Promise<unknown> = Promise.resolve();
+      // Use a long duration (7 days) so the connection stays up continuously.
+      // Discord.js handles heartbeats and reconnects internally; the outer loop
+      // handles the rare case where runGatewayListener itself throws.
       await discord.startGatewayListener(
         { waitUntil: (p) => { gatewayPromise = p; } },
-        10 * 60 * 1000
+        7 * 24 * 60 * 60 * 1000,
       );
-      console.log("step 3.9 - startGatewayListener returned");
       await gatewayPromise;
-      console.log("step 3.10 - gatewayPromise resolved");
     } catch (err) {
-      console.log("step 3.ERR - gateway error:", err);
       logger.error('Gateway listener error', err);
     }
     logger.info('Gateway listener ended. Reconnecting in 5s...');
