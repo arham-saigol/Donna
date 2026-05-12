@@ -96,6 +96,7 @@ async function setupWizard() {
   const deepgramKey = await ask('Deepgram API Key');
   const discordToken = await ask('Discord Bot Token');
   const discordAppId = await ask('Discord Application ID');
+  const discordPublicKey = await ask('Discord Public Key (from Developer Portal → Your App → General Information)');
 
   const envLines: string[] = [];
   if (deepseekKey) envLines.push(`DEEPSEEK_API_KEY=${deepseekKey}`);
@@ -103,6 +104,7 @@ async function setupWizard() {
   if (deepgramKey) envLines.push(`DEEPGRAM_API_KEY=${deepgramKey}`);
   if (discordToken) envLines.push(`DISCORD_BOT_TOKEN=${discordToken}`);
   if (discordAppId) envLines.push(`DISCORD_APPLICATION_ID=${discordAppId}`);
+  if (discordPublicKey) envLines.push(`DISCORD_PUBLIC_KEY=${discordPublicKey}`);
 
   if (envLines.length > 0) {
     const envPath = join(ROOT, '.env');
