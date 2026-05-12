@@ -78,6 +78,18 @@ const COMMANDS: RESTPutAPIApplicationCommandsJSONBody = [
       },
     ],
   },
+  {
+    name: 'deletebot',
+    description: 'Permanently delete a bot by name',
+    options: [
+      {
+        type: ApplicationCommandOptionType.String,
+        name: 'name',
+        description: 'Bot name to delete',
+        required: true,
+      },
+    ],
+  },
 ];
 
 export async function registerCommands(guildId?: string): Promise<void> {
