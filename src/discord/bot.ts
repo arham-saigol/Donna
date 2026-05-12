@@ -263,21 +263,84 @@ export async function startBot() {
 
   const discord = bot.getAdapter('discord') as DiscordAdapter;
   console.log("step 3.7 - discord adapter retrieved:", discord != null);
+
+  // The adapter's setupLegacyGatewayHandlers only registers MessageCreate and
+  // reaction events. Slash commands arrive via Gateway as INTERACTION_CREATE but
+  // have no handler, so Discord times out with "application did not respond".
+  // Patch the instance to also handle interactionCreate.
+  const adapterAny = discord as any;
+  const _origSetup = adapterAny.setupLegacyGatewayHandlers.bind(adapterAny);
+  adapterAny.setupLegacyGatewayHandlers = function (client: any, isShuttingDown: () => boolean) {
+    _origSetup(client, isShuttingDown);
+
+    client.on('interactionCreate', async (interaction: any) => {
+      if (isShuttingDown()) return;
+      if (!interaction.isChatInputCommand()) return;
+
+      logger.info('Slash command received via Gateway', {
+        command: interaction.commandName,
+        userId: interaction.user?.id,
+      });
+
+      // Acknowledge within Discord's 3-second window to avoid "application did not respond"
+      try {
+        await fetch(
+          `https://discord.com/api/v10/interactions/${interaction.id}/${interaction.token}/callback`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ type: 5 }), // DeferredChannelMessageWithSource
+          },
+        );
+      } catch (err) {
+        logger.error('Failed to acknowledge slash command interaction', err);
+        return;
+      }
+
+      // Build a Discord API-shaped object so handleApplicationCommandInteraction
+      // can set up the request context and call processSlashCommand correctly.
+      const rawUser = {
+        id: interaction.user.id,
+        username: interaction.user.username,
+        global_name: interaction.user.globalName ?? null,
+        bot: interaction.user.bot ?? false,
+      };
+      const rawInteraction = {
+        id: interaction.id,
+        token: interaction.token,
+        data: {
+          name: interaction.commandName,
+          options: interaction.options?.data ?? [],
+        },
+        member: interaction.member
+          ? { user: rawUser }
+          : undefined,
+        user: rawUser,
+        channel_id: interaction.channelId,
+        guild_id: interaction.guildId ?? null,
+        channel: interaction.channel
+          ? { type: interaction.channel.type, parent_id: interaction.channel.parentId ?? null }
+          : null,
+      };
+
+      adapterAny.handleApplicationCommandInteraction(rawInteraction, {});
+    });
+  };
+
   logger.info('Starting Discord Gateway listener...');
 
   while (true) {
-    console.log("step 3.8 - entering gateway loop iteration");
     try {
       let gatewayPromise: Promise<unknown> = Promise.resolve();
+      // Use a long duration (7 days) so the connection stays up continuously.
+      // Discord.js handles heartbeats and reconnects internally; the outer loop
+      // handles the rare case where runGatewayListener itself throws.
       await discord.startGatewayListener(
         { waitUntil: (p) => { gatewayPromise = p; } },
-        10 * 60 * 1000
+        7 * 24 * 60 * 60 * 1000,
       );
-      console.log("step 3.9 - startGatewayListener returned");
       await gatewayPromise;
-      console.log("step 3.10 - gatewayPromise resolved");
     } catch (err) {
-      console.log("step 3.ERR - gateway error:", err);
       logger.error('Gateway listener error', err);
     }
     logger.info('Gateway listener ended. Reconnecting in 5s...');
