@@ -253,7 +253,12 @@ export async function startBot() {
 
   while (true) {
     try {
-      await discord.startGatewayListener({}, 10 * 60 * 1000);
+      let gatewayPromise: Promise<unknown> = Promise.resolve();
+      await discord.startGatewayListener(
+        { waitUntil: (p) => { gatewayPromise = p; } },
+        10 * 60 * 1000
+      );
+      await gatewayPromise;
     } catch (err) {
       logger.error('Gateway listener error', err);
     }
