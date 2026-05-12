@@ -87,6 +87,7 @@ async function processMessage(thread: Thread, message: Message) {
 export async function startBot() {
   console.log("step 3");
   const fileState = new FileStateAdapter();
+  console.log("step 3.1 - FileStateAdapter created");
   const bot = new Chat({
     userName: 'donna',
     adapters: {
@@ -97,6 +98,7 @@ export async function startBot() {
     fallbackStreamingPlaceholderText: '...',
     streamingUpdateIntervalMs: 800,
   });
+  console.log("step 3.2 - Chat created");
 
   // --- Event Handlers ---
 
@@ -240,27 +242,36 @@ export async function startBot() {
   bot.onSlashCommand(async (event) => {
     logger.info(`Unhandled slash command: ${event.command} from ${event.user.userId}`);
   });
+  console.log("step 3.3 - event handlers registered");
 
   await bot.initialize();
+  console.log("step 3.4 - bot.initialize() done");
   await fileState.connect();
+  console.log("step 3.5 - fileState.connect() done");
 
   const active = await getActiveCharacter();
+  console.log("step 3.6 - getActiveCharacter() done, active:", active);
   if (active) {
     initAgent(active);
   }
 
   const discord = bot.getAdapter('discord') as DiscordAdapter;
+  console.log("step 3.7 - discord adapter retrieved:", discord != null);
   logger.info('Starting Discord Gateway listener...');
 
   while (true) {
+    console.log("step 3.8 - entering gateway loop iteration");
     try {
       let gatewayPromise: Promise<unknown> = Promise.resolve();
       await discord.startGatewayListener(
         { waitUntil: (p) => { gatewayPromise = p; } },
         10 * 60 * 1000
       );
+      console.log("step 3.9 - startGatewayListener returned");
       await gatewayPromise;
+      console.log("step 3.10 - gatewayPromise resolved");
     } catch (err) {
+      console.log("step 3.ERR - gateway error:", err);
       logger.error('Gateway listener error', err);
     }
     logger.info('Gateway listener ended. Reconnecting in 5s...');
