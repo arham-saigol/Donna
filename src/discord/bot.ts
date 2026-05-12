@@ -12,7 +12,7 @@ import {
   setGlobalModel,
   setGlobalReasoning,
 } from '../ai/agent.js';
-import { createCharacter, switchCharacter, getActiveCharacter, deleteCharacter } from '../character/manager.js';
+import { createCharacter, switchCharacter, getActiveCharacter, deleteCharacter, clearActiveCharacter } from '../character/manager.js';
 import { readSoul } from '../character/soul.js';
 import { logger } from '../logger.js';
 import type { Attachment, Thread, Message } from 'chat';
@@ -256,6 +256,7 @@ export async function startBot() {
       const active = await getActiveCharacter();
       if (active === name) {
         clearAllSessions();
+        await clearActiveCharacter();
       }
       await event.channel.post(`Bot **${name}** has been permanently deleted.`);
     } catch (err) {
