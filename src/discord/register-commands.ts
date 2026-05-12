@@ -1,8 +1,10 @@
 import { REST } from '@discordjs/rest';
+import type { RESTPutAPIApplicationCommandsJSONBody } from 'discord-api-types/rest/v10';
 import { Routes } from 'discord-api-types/rest/v10';
+import { ApplicationCommandOptionType } from 'discord-api-types/v10';
 import { requireEnv } from '../config.js';
 
-const COMMANDS = [
+const COMMANDS: RESTPutAPIApplicationCommandsJSONBody = [
   {
     name: 'pair',
     description: 'Pair your Discord account with this Donna instance',
@@ -12,7 +14,7 @@ const COMMANDS = [
     description: 'Create a new character',
     options: [
       {
-        type: 3, // STRING
+        type: ApplicationCommandOptionType.String,
         name: 'name',
         description: 'Character name',
         required: true,
@@ -24,7 +26,7 @@ const COMMANDS = [
     description: 'Switch to an existing character',
     options: [
       {
-        type: 3,
+        type: ApplicationCommandOptionType.String,
         name: 'name',
         description: 'Character name',
         required: true,
@@ -48,7 +50,7 @@ const COMMANDS = [
     description: 'Set the reasoning level',
     options: [
       {
-        type: 3,
+        type: ApplicationCommandOptionType.String,
         name: 'level',
         description: 'Reasoning level',
         required: true,
@@ -65,7 +67,7 @@ const COMMANDS = [
     description: 'Switch the AI model',
     options: [
       {
-        type: 3,
+        type: ApplicationCommandOptionType.String,
         name: 'model',
         description: 'Model to use',
         required: true,
