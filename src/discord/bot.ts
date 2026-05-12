@@ -88,10 +88,13 @@ export async function startBot() {
   console.log("step 3");
   const fileState = new FileStateAdapter();
   console.log("step 3.1 - FileStateAdapter created");
+  console.log("step 3.1a - about to call createDiscordAdapter()");
+  const discordAdapter = createDiscordAdapter();
+  console.log("step 3.1b - createDiscordAdapter() done");
   const bot = new Chat({
     userName: 'donna',
     adapters: {
-      discord: createDiscordAdapter(),
+      discord: discordAdapter,
     },
     state: fileState,
     logger: 'info',
