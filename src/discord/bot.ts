@@ -12,7 +12,7 @@ import {
   setGlobalModel,
   setGlobalReasoning,
 } from '../ai/agent.js';
-import { createCharacter, switchCharacter, getActiveCharacter } from '../character/manager.js';
+import { createCharacter, switchCharacter, getActiveCharacter, deleteCharacter } from '../character/manager.js';
 import { readSoul } from '../character/soul.js';
 import { logger } from '../logger.js';
 import type { Attachment, Thread, Message } from 'chat';
@@ -235,6 +235,33 @@ export async function startBot() {
     }
     setGlobalModel(choice as 'flash' | 'pro');
     await event.channel.post(`Model switched to **${choice}**.`);
+  });
+
+  bot.onSlashCommand('/deletebot', async (event) => {
+    if (!(await requirePairedUser(event.user.userId))) {
+      await event.channel.post('Unauthorized.');
+      return;
+    }
+    const name = event.text.trim();
+    if (!name) {
+      await event.channel.post('Usage: /deletebot [name]');
+      return;
+    }
+    try {
+      const deleted = await deleteCharacter(name);
+      if (!deleted) {
+        await event.channel.post(`Bot **${name}** does not exist.`);
+        return;
+      }
+      const active = await getActiveCharacter();
+      if (active === name) {
+        clearAllSessions();
+      }
+      await event.channel.post(`Bot **${name}** has been permanently deleted.`);
+    } catch (err) {
+      logger.error('Delete bot failed', err);
+      await event.channel.post('Failed to delete bot.');
+    }
   });
 
   bot.onSlashCommand(async (event) => {
