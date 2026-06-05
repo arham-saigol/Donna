@@ -1,12 +1,12 @@
 import { streamText, stepCountIs, type ModelMessage, type StreamTextResult, type JSONValue } from 'ai';
 import type { Thread } from 'chat';
-import { getCurrentModel } from './models.js';
+import { getCurrentModel, type ModelType } from './models.js';
 import { createTools } from './tools.js';
 import { readSoul, readBootstrap } from '../character/soul.js';
 import { logger } from '../logger.js';
 
 export type ReasoningLevel = 'low' | 'medium' | 'high';
-export type ModelType = 'flash' | 'pro';
+export { type ModelType } from './models.js';
 
 class ThreadSession {
   private messages: ModelMessage[] = [];
@@ -108,6 +108,9 @@ class ThreadSession {
   }
 
   private buildProviderOptions() {
+    if (this.modelType !== 'flash' && this.modelType !== 'pro') {
+      return {};
+    }
     const thinking =
       this.reasoning === 'low'
         ? { type: 'disabled' as const }
