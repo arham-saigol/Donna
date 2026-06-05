@@ -9,14 +9,14 @@ Donna is a private, self-hosted personal AI experience. She pairs with your Disc
 - **Memory System** — Characters remember facts, people, preferences, and events across sessions via markdown-based memory files.
 - **Soul Evolution** — Characters can edit their own `SOUL.md` over time to grow and change.
 - **Voice Messages** — Send voice messages in Discord DMs; Donna transcribes them with Deepgram and replies in text.
-- **Model Switching** — Toggle between Deepseek V4 Flash (fast) and Deepseek V4 Pro (premium via Vercel AI Gateway).
+- **Model Switching** — Toggle between Deepseek V4 Flash, Deepseek V4 Pro, Minimax M3, Kimi K2.6, GPT 5.5, and Nemotron 3 Ultra (all via Vercel AI Gateway except Flash).
 - **Reasoning Control** — Set reasoning depth (low / medium / high) per session.
 
 ## Tech Stack
 
 - **Runtime:** Node.js 20+ on Ubuntu VPS
 - **AI SDK:** Vercel AI SDK v6
-- **Models:** Deepseek V4 Flash (default), Deepseek V4 Pro (premium)
+- **Models:** Deepseek V4 Flash (default), Deepseek V4 Pro, Minimax M3, Kimi K2.6, GPT 5.5, Nemotron 3 Ultra
 - **STT:** Deepgram Nova 3 (`nova-3-general`)
 - **Discord:** Vercel Chat SDK with official Discord Gateway adapter
 - **Language:** TypeScript (strict mode)
@@ -110,7 +110,7 @@ Just DM Donna normally. She will:
 | Command | Description |
 |---|---|
 | `/reasoning [low\|medium\|high]` | Set reasoning depth |
-| `/model [flash\|pro]` | Switch AI model |
+| `/model [flash\|pro\|minimax-m3\|kimi-k2.6\|gpt-5.5\|nemotron-3-ultra]` | Switch AI model |
 | `/new` | Start a fresh session (keeps memories, clears chat history) |
 | `/abort` | Stop the current response mid-stream |
 | `/create [name]` | Create a new character |

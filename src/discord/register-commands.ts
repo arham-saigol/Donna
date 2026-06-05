@@ -74,6 +74,10 @@ const COMMANDS: RESTPutAPIApplicationCommandsJSONBody = [
         choices: [
           { name: 'flash', value: 'flash' },
           { name: 'pro', value: 'pro' },
+          { name: 'minimax-m3', value: 'minimax-m3' },
+          { name: 'kimi-k2.6', value: 'kimi-k2.6' },
+          { name: 'gpt-5.5', value: 'gpt-5.5' },
+          { name: 'nemotron-3-ultra', value: 'nemotron-3-ultra' },
         ],
       },
     ],

@@ -4,6 +4,7 @@ import { experimental_transcribe as transcribe } from 'ai';
 import { deepgram } from '@ai-sdk/deepgram';
 import { FileStateAdapter } from '../state/file-state.js';
 import { getPairedUser, createPairingCode, isPaired } from '../pairing.js';
+import { MODEL_TYPES } from '../ai/models.js';
 import {
   handleUserMessage,
   abortAll,
@@ -229,11 +230,11 @@ export async function startBot() {
       return;
     }
     const choice = event.text.trim().toLowerCase();
-    if (!['flash', 'pro'].includes(choice)) {
-      await event.channel.post('Usage: /model [flash|pro]');
+    if (!MODEL_TYPES.includes(choice as typeof MODEL_TYPES[number])) {
+      await event.channel.post(`Usage: /model [${MODEL_TYPES.join('|')}]`);
       return;
     }
-    setGlobalModel(choice as 'flash' | 'pro');
+    setGlobalModel(choice as typeof MODEL_TYPES[number]);
     await event.channel.post(`Model switched to **${choice}**.`);
   });
 
