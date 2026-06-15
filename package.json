@@ -18,7 +18,7 @@
   },
   "dependencies": {
     "@ai-sdk/deepgram": "latest",
-    "@ai-sdk/deepseek": "latest",
+    "@ai-sdk/deepseek": "^2.0.38",
     "@ai-sdk/openai": "latest",
     "@chat-adapter/discord": "4.28.1",
     "ai": "latest",

@@ -12,6 +12,14 @@ test('returns text of exactly the max length unchanged', () => {
   assert.deepEqual(splitMessage(text, 2000), [text]);
 });
 
+test('throws when maxLength is zero', () => {
+  assert.throws(() => splitMessage('hello', 0), /positive integer/);
+});
+
+test('throws when maxLength is negative', () => {
+  assert.throws(() => splitMessage('hello', -1), /positive integer/);
+});
+
 test('splits at paragraph boundaries when possible', () => {
   const part = 'a'.repeat(500);
   const text = `${part}\n\n${part}\n\n${part}`;

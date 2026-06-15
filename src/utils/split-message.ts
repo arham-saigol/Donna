@@ -1,4 +1,8 @@
 export function splitMessage(text: string, maxLength = 2000): string[] {
+  if (!Number.isInteger(maxLength) || maxLength <= 0) {
+    throw new Error('maxLength must be a positive integer');
+  }
+
   if (text.length <= maxLength) {
     return [text];
   }

@@ -5,9 +5,11 @@ import { env, requireEnv } from '../config.js';
 
 let gatewayProvider: ReturnType<typeof createGateway> | null = null;
 function getGatewayProvider() {
+  const key = env('AI_GATEWAY_API_KEY');
+  if (!key) return null;
   if (!gatewayProvider) {
     gatewayProvider = createGateway({
-      apiKey: requireEnv('AI_GATEWAY_API_KEY'),
+      apiKey: key,
     });
   }
   return gatewayProvider;
@@ -36,15 +38,15 @@ function getStepfunProvider() {
 
 export function getProModel() {
   // Gateway model ID format: creator/model-name
-  return getGatewayProvider().languageModel('deepseek/deepseek-v4-pro');
+  return getGatewayProvider()?.languageModel('deepseek/deepseek-v4-pro') ?? null;
 }
 
 export function getDeepseekV4ProModel() {
-  return getGatewayProvider().languageModel('deepseek/deepseek-v4-pro');
+  return getGatewayProvider()?.languageModel('deepseek/deepseek-v4-pro') ?? null;
 }
 
 export function getDeepseekV4FlashModel() {
-  return getGatewayProvider().languageModel('deepseek/deepseek-v4-flash');
+  return getGatewayProvider()?.languageModel('deepseek/deepseek-v4-flash') ?? null;
 }
 
 export function getStepfun37FlashModel() {

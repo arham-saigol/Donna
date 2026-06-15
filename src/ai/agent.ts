@@ -87,9 +87,20 @@ function getErrorMessage(error: unknown): string {
   return String(error);
 }
 
+function withDeepSeekFallbackHint(error: unknown): Error {
+  const hint = 'Set DEEPSEEK_API_KEY to enable the fallback.';
+  if (error instanceof Error) {
+    if (!error.message.includes(hint)) {
+      error.message = `${error.message} ${hint}`;
+    }
+    return error;
+  }
+  return new Error(`${String(error)} ${hint}`);
+}
+
 async function streamWithFallback(
   modelType: ModelType,
-  primaryModel: LanguageModel,
+  primaryModel: LanguageModel | null,
   options: Omit<Parameters<typeof streamText>[0], 'model'>
 ): Promise<{ text: string; messages: ModelMessage[] }> {
   const run = async (model: LanguageModel) => {
@@ -102,6 +113,16 @@ async function streamWithFallback(
     return { text, messages: response.messages as ModelMessage[] };
   };
 
+  if (!primaryModel) {
+    const fallbackModel = getFallbackModel(modelType);
+    if (!fallbackModel) {
+      throw new Error(
+        'Missing required environment variable: AI_GATEWAY_API_KEY. Set DEEPSEEK_API_KEY to enable the fallback.'
+      );
+    }
+    return await run(fallbackModel);
+  }
+
   try {
     return await run(primaryModel);
   } catch (error) {
@@ -113,9 +134,7 @@ async function streamWithFallback(
         modelType === 'Deepseek V4 Pro' ||
         modelType === 'Deepseek V4 Flash'
       ) {
-        throw new Error(
-          'DeepSeek gateway failed and DEEPSEEK_API_KEY is not set. Set DEEPSEEK_API_KEY to enable the fallback.'
-        );
+        throw withDeepSeekFallbackHint(error);
       }
       throw error;
     }
