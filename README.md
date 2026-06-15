@@ -9,14 +9,14 @@ Donna is a private, self-hosted personal AI experience. She pairs with your Disc
 - **Memory System** — Characters remember facts, people, preferences, and events across sessions via markdown-based memory files.
 - **Soul Evolution** — Characters can edit their own `SOUL.md` over time to grow and change.
 - **Voice Messages** — Send voice messages in Discord DMs; Donna transcribes them with Deepgram and replies in text.
-- **Model Switching** — Toggle between Deepseek V4 Flash, Deepseek V4 Pro, Minimax M3, Kimi K2.6, GPT 5.5, and Nemotron 3 Ultra (all via Vercel AI Gateway except Flash).
+- **Model Switching** — Toggle between Deepseek V4 Pro, Deepseek V4 Flash, Stepfun 3.7 Flash, and Nex N2 Pro.
 - **Reasoning Control** — Set reasoning depth (low / medium / high) per session.
 
 ## Tech Stack
 
 - **Runtime:** Node.js 20+ on Ubuntu VPS
 - **AI SDK:** Vercel AI SDK v6
-- **Models:** Deepseek V4 Flash (default), Deepseek V4 Pro, Minimax M3, Kimi K2.6, GPT 5.5, Nemotron 3 Ultra
+- **Models:** Deepseek V4 Pro (default), Deepseek V4 Flash, Stepfun 3.7 Flash, Nex N2 Pro
 - **STT:** Deepgram Nova 3 (`nova-3-general`)
 - **Discord:** Vercel Chat SDK with official Discord Gateway adapter
 - **Language:** TypeScript (strict mode)
@@ -28,8 +28,9 @@ Donna is a private, self-hosted personal AI experience. She pairs with your Disc
 - ffmpeg (for voice message support)
 - A Discord Bot account (Token + Application ID)
 - API keys for:
-  - Deepseek API
   - Vercel AI Gateway
+  - OpenRouter
+  - StepFun
   - Deepgram
 
 ## Installation
@@ -110,7 +111,7 @@ Just DM Donna normally. She will:
 | Command | Description |
 |---|---|
 | `/reasoning [low\|medium\|high]` | Set reasoning depth |
-| `/model [flash\|pro\|minimax-m3\|kimi-k2.6\|gpt-5.5\|nemotron-3-ultra]` | Switch AI model |
+| `/model [Deepseek V4 Pro\|Deepseek V4 Flash\|Stepfun 3.7 Flash\|Nex N2 Pro]` | Switch AI model |
 | `/new` | Start a fresh session (keeps memories, clears chat history) |
 | `/abort` | Stop the current response mid-stream |
 | `/create [name]` | Create a new character |
@@ -187,8 +188,9 @@ All stored in `.env`:
 
 | Variable | Description |
 |---|---|
-| `DEEPSEEK_API_KEY` | Deepseek API key (for Flash model) |
-| `AI_GATEWAY_API_KEY` | Vercel AI Gateway key (for Pro model) |
+| `AI_GATEWAY_API_KEY` | Vercel AI Gateway key (for Deepseek models) |
+| `OPENROUTER_API_KEY` | OpenRouter API key (for Nex N2 Pro) |
+| `STEPFUN_API_KEY` | StepFun API key (for Stepfun 3.7 Flash) |
 | `DEEPGRAM_API_KEY` | Deepgram API key (voice transcription) |
 | `DISCORD_BOT_TOKEN` | Discord bot token |
 | `DISCORD_APPLICATION_ID` | Discord application ID |
@@ -206,7 +208,7 @@ donna logs
 - **Bot not responding**: Check `donna status`. Ensure `donna start` is running and the Discord bot token is correct.
 - **Slash commands not appearing**: Discord slash commands can take up to an hour to propagate globally. For instant testing, invite the bot with `applications.commands` scope to a small server first.
 - **Voice messages fail**: Ensure `ffmpeg` is installed and `DEEPGRAM_API_KEY` is set.
-- **Model errors**: Ensure `DEEPSEEK_API_KEY` is set for Flash, and `AI_GATEWAY_API_KEY` for Pro.
+- **Model errors**: Ensure the provider API key for the selected model is set (`AI_GATEWAY_API_KEY`, `OPENROUTER_API_KEY`, or `STEPFUN_API_KEY`).
 
 ## License
 

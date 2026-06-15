@@ -127,7 +127,7 @@ class ThreadSession {
   }
 
   private buildProviderOptions() {
-    if (this.modelType !== 'flash' && this.modelType !== 'pro') {
+    if (this.modelType !== 'Deepseek V4 Flash' && this.modelType !== 'Deepseek V4 Pro') {
       return {};
     }
     const thinking =
@@ -147,7 +147,7 @@ const sessions = new Map<string, ThreadSession>();
 
 // Global settings
 let globalReasoning: ReasoningLevel = 'medium';
-let globalModel: ModelType = 'flash';
+let globalModel: ModelType = 'Deepseek V4 Pro';
 let globalCharacter: string | null = null;
 
 export function initAgent(character: string) {

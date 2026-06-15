@@ -92,16 +92,18 @@ async function setupWizard() {
     return val.trim();
   };
 
-  const deepseekKey = await ask('Deepseek API Key');
   const gatewayKey = await ask('Vercel AI Gateway API Key');
+  const openrouterKey = await ask('OpenRouter API Key');
+  const stepfunKey = await ask('StepFun API Key');
   const deepgramKey = await ask('Deepgram API Key');
   const discordToken = await ask('Discord Bot Token');
   const discordAppId = await ask('Discord Application ID');
   const discordPublicKey = await ask('Discord Public Key (from Developer Portal → Your App → General Information)');
 
   const envLines: string[] = [];
-  if (deepseekKey) envLines.push(`DEEPSEEK_API_KEY=${deepseekKey}`);
   if (gatewayKey) envLines.push(`AI_GATEWAY_API_KEY=${gatewayKey}`);
+  if (openrouterKey) envLines.push(`OPENROUTER_API_KEY=${openrouterKey}`);
+  if (stepfunKey) envLines.push(`STEPFUN_API_KEY=${stepfunKey}`);
   if (deepgramKey) envLines.push(`DEEPGRAM_API_KEY=${deepgramKey}`);
   if (discordToken) envLines.push(`DISCORD_BOT_TOKEN=${discordToken}`);
   if (discordAppId) envLines.push(`DISCORD_APPLICATION_ID=${discordAppId}`);

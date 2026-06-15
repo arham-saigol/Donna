@@ -18,8 +18,9 @@
   },
   "dependencies": {
     "@ai-sdk/deepgram": "latest",
-    "@ai-sdk/deepseek": "latest",
+    "@ai-sdk/openai": "latest",
     "@chat-adapter/discord": "4.28.1",
+    "@openrouter/ai-sdk-provider": "latest",
     "ai": "latest",
     "chat": "latest",
     "dotenv": "latest",

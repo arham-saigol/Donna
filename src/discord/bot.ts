@@ -251,7 +251,7 @@ export async function startBot() {
       await event.channel.post('Unauthorized.');
       return;
     }
-    const choice = event.text.trim().toLowerCase();
+    const choice = event.text.trim();
     if (!MODEL_TYPES.includes(choice as typeof MODEL_TYPES[number])) {
       await event.channel.post(`Usage: /model [${MODEL_TYPES.join('|')}]`);
       return;
