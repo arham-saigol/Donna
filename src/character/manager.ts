@@ -17,17 +17,23 @@ export async function clearActiveCharacter() {
 }
 
 export async function createCharacter(name: string): Promise<void> {
+  if (!name || !SAFE_NAME.test(name)) {
+    throw new Error(`Invalid character name: ${name}`);
+  }
   const charDir = join(CHARACTERS_DIR, name);
   ensureDir(charDir);
 
   const soulPath = join(charDir, 'SOUL.md');
   const memoryPath = join(charDir, 'MEMORY.md');
 
-  await writeFileUtf8(soulPath, '# SOUL\n\n');
-  await writeFileUtf8(memoryPath, '# MEMORY\n\n');
+  await writeFileUtf8(soulPath, '');
+  await writeFileUtf8(memoryPath, '');
 }
 
 export async function switchCharacter(name: string): Promise<boolean> {
+  if (!name || !SAFE_NAME.test(name)) {
+    return false;
+  }
   const charDir = join(CHARACTERS_DIR, name);
   if (!(await fileExists(join(charDir, 'SOUL.md')))) {
     return false;

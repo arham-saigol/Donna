@@ -2,8 +2,8 @@ import { streamText, type ModelMessage, type JSONValue } from 'ai';
 import type { Thread } from 'chat';
 import { getCurrentModel, type ModelType } from './models.js';
 import { dream, type DreamMode } from './dreamer.js';
-import { readSoul, isSoulEmpty } from '../character/soul.js';
-import { readMemory, isMemoryEmpty } from '../character/memory-file.js';
+import { readSoul } from '../character/soul.js';
+import { readMemory } from '../character/memory-file.js';
 import { logger } from '../logger.js';
 
 export type ReasoningLevel = 'low' | 'medium' | 'high';
@@ -60,7 +60,7 @@ class ThreadSession {
   }
 
   getMessages(): ModelMessage[] {
-    return this.messages;
+    return [...this.messages];
   }
 
   abort() {
@@ -91,7 +91,7 @@ class ThreadSession {
       const memory = await readMemory(this.characterName);
 
       let system: string;
-      if ((await isSoulEmpty(this.characterName)) && (await isMemoryEmpty(this.characterName))) {
+      if (!soul?.trim() && !memory?.trim()) {
         system = FIRST_SESSION_PROMPT;
       } else {
         system = REGULAR_SYSTEM_PROMPT
@@ -153,7 +153,13 @@ let globalCharacter: string | null = null;
 export function initAgent(character: string) {
   globalCharacter = character;
   // Snapshot any existing sessions, fire dreams, then clear.
-  void clearAllSessions();
+  void clearAllSessions().catch((err) =>
+    logger.error('Failed to clear sessions on agent init', err)
+  );
+}
+
+export function clearAgent() {
+  globalCharacter = null;
 }
 
 function getSession(threadId: string, character: string): ThreadSession {
@@ -162,7 +168,9 @@ function getSession(threadId: string, character: string): ThreadSession {
     session = new ThreadSession(character, globalReasoning, globalModel);
     sessions.set(threadId, session);
     // New session start: refresh the dreamer with no new transcript.
-    void triggerDreamOnSessionStart(character);
+    void triggerDreamOnSessionStart(character).catch((err) =>
+      logger.error('Failed to trigger dream on session start', { character, err })
+    );
   }
   return session;
 }
@@ -207,7 +215,9 @@ export async function clearThread(threadId: string) {
   const transcript = session.getMessages();
   sessions.delete(threadId);
   // Fire-and-forget: callers don't await the dream itself.
-  void triggerDreamOnSessionEnd(character, transcript);
+  void triggerDreamOnSessionEnd(character, transcript).catch((err) =>
+    logger.error('Failed to trigger dream on session end', { character, err })
+  );
 }
 
 export function abortAll() {
@@ -229,7 +239,9 @@ export async function clearAllSessions(opts?: { skipDreamsFor?: string[] }) {
   for (const { character, transcript } of snapshots) {
     if (skip.has(character)) continue;
     // Fire-and-forget: callers don't await the dream itself.
-    void triggerDreamOnSessionEnd(character, transcript);
+    void triggerDreamOnSessionEnd(character, transcript).catch((err) =>
+      logger.error('Failed to trigger dream on session end', { character, err })
+    );
   }
 }
 

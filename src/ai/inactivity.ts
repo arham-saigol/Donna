@@ -20,11 +20,20 @@ export function startInactivityWatcher<
   const threshold = opts.thresholdMs ?? DEFAULT_THRESHOLD_MS;
   const poll = opts.pollIntervalMs ?? DEFAULT_POLL_MS;
 
+  const consolidated = new WeakSet<S>();
+
   const tick = () => {
     const now = Date.now();
     for (const session of opts.getSessions().values()) {
-      if (now - session.lastActivity < threshold) continue;
-      void dream(session.characterName, 'consolidate', session.getMessages());
+      if (now - session.lastActivity < threshold) {
+        consolidated.delete(session);
+        continue;
+      }
+      if (consolidated.has(session)) continue;
+      consolidated.add(session);
+      void dream(session.characterName, 'consolidate', session.getMessages()).catch((err) =>
+        logger.error('Inactivity dream failed', { character: session.characterName, err })
+      );
     }
   };
 

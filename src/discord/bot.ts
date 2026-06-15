@@ -13,6 +13,7 @@ import {
   setGlobalModel,
   setGlobalReasoning,
   getSessions,
+  clearAgent,
 } from '../ai/agent.js';
 import { startInactivityWatcher } from '../ai/inactivity.js';
 import { createCharacter, switchCharacter, getActiveCharacter, deleteCharacter, clearActiveCharacter } from '../character/manager.js';
@@ -196,6 +197,10 @@ export async function startBot() {
   });
 
   bot.onSlashCommand('/memory', async (event) => {
+    if (!event.channel.isDM) {
+      await event.channel.post('This command can only be used in DMs.');
+      return;
+    }
     if (!(await requirePairedUser(event.user.userId))) {
       await event.channel.post('Unauthorized.');
       return;
@@ -275,6 +280,7 @@ export async function startBot() {
       if (active === name) {
         await clearAllSessions({ skipDreamsFor: [name] });
         await clearActiveCharacter();
+        clearAgent();
       }
       await event.channel.post(`Bot **${name}** has been permanently deleted.`);
     } catch (err) {

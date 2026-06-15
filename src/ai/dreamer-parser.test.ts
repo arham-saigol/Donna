@@ -79,3 +79,11 @@ test('handles empty blocks', () => {
   assert.equal(result.soul, '');
   assert.equal(result.memory, '');
 });
+
+test('strips markdown code fences before parsing', () => {
+  const response = '```markdown\n<!-- SOUL.md -->\n# SOUL\nNova\n\n<!-- MEMORY.md -->\n# MEMORY\n- x\n```';
+  const result = parseDreamerResponse(response);
+  assert.ok(result);
+  assert.equal(result.soul, '# SOUL\nNova');
+  assert.equal(result.memory, '# MEMORY\n- x');
+});

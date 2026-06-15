@@ -38,6 +38,7 @@ Return your response in exactly this format. No prose outside these blocks:
 `;
 
 const inFlightDreams = new Map<string, Promise<void>>();
+const pendingDreams = new Map<string, Array<{ mode: DreamMode; transcript?: ModelMessage[] }>>();
 
 function formatTranscript(messages: ModelMessage[]): string {
   return messages
@@ -77,62 +78,84 @@ function extractText(content: unknown): string {
 }
 
 async function runDream(character: string, mode: DreamMode, transcript: ModelMessage[] | undefined) {
-  const soulEmpty = await isSoulEmpty(character);
-  const memoryEmpty = await isMemoryEmpty(character);
-
-  if (mode === 'refresh' && soulEmpty && memoryEmpty) {
-    logger.info('Dream skipped: both SOUL and MEMORY empty', { character, mode });
-    return;
-  }
-  if (mode === 'consolidate' && (!transcript || transcript.length === 0)) {
-    logger.info('Dream skipped: empty transcript', { character, mode });
-    return;
-  }
-
-  const currentSoul = (await readSoul(character)) ?? '';
-  const currentMemory = (await readMemory(character)) ?? '';
-
-  const transcriptSection =
-    mode === 'consolidate' && transcript && transcript.length > 0
-      ? formatTranscript(transcript)
-      : 'no new transcript; refresh pass';
-
-  const userMessage = [
-    '--- CURRENT SOUL.md ---',
-    currentSoul || '(empty)',
-    '',
-    '--- CURRENT MEMORY.md ---',
-    currentMemory || '(empty)',
-    '',
-    '--- TRANSCRIPT ---',
-    transcriptSection,
-  ].join('\n');
-
-  let response: Awaited<ReturnType<typeof generateText>>;
   try {
-    response = await generateText({
-      model: getProModel(),
-      system: DREAMER_SYSTEM_PROMPT,
-      prompt: userMessage,
-      providerOptions: {
-        deepseek: { thinking: { type: 'enabled' }, reasoningEffort: 'max' },
-      } as Record<string, Record<string, JSONValue>>,
-    });
+    const soulEmpty = await isSoulEmpty(character);
+    const memoryEmpty = await isMemoryEmpty(character);
+
+    if (mode === 'refresh' && soulEmpty && memoryEmpty) {
+      logger.info('Dream skipped: both SOUL and MEMORY empty', { character, mode });
+      return;
+    }
+    if (mode === 'consolidate' && (!transcript || transcript.length === 0)) {
+      logger.info('Dream skipped: empty transcript', { character, mode });
+      return;
+    }
+
+    const currentSoul = (await readSoul(character)) ?? '';
+    const currentMemory = (await readMemory(character)) ?? '';
+
+    const transcriptSection =
+      mode === 'consolidate' && transcript && transcript.length > 0
+        ? formatTranscript(transcript)
+        : 'no new transcript; refresh pass';
+
+    const userMessage = [
+      '--- CURRENT SOUL.md ---',
+      currentSoul || '(empty)',
+      '',
+      '--- CURRENT MEMORY.md ---',
+      currentMemory || '(empty)',
+      '',
+      '--- TRANSCRIPT ---',
+      transcriptSection,
+    ].join('\n');
+
+    let response: Awaited<ReturnType<typeof generateText>>;
+    try {
+      response = await generateText({
+        model: getProModel(),
+        system: DREAMER_SYSTEM_PROMPT,
+        prompt: userMessage,
+        providerOptions: {
+          deepseek: { thinking: { type: 'enabled' }, reasoningEffort: 'max' },
+        } as Record<string, Record<string, JSONValue>>,
+      });
+    } catch (err) {
+      logger.error('Dreamer generateText failed', { character, mode, err });
+      return;
+    }
+
+    const parsed = parseDreamerResponse(response.text);
+    if (!parsed) {
+      logger.error('Dreamer response parse failed; files left unchanged', { character, mode });
+      return;
+    }
+
+    await writeSoul(character, parsed.soul);
+    await writeMemory(character, parsed.memory);
+
+    logger.info('Dream completed', { character, mode, soulLen: parsed.soul.length, memoryLen: parsed.memory.length });
   } catch (err) {
-    logger.error('Dreamer generateText failed', { character, mode, err });
-    return;
+    logger.error('Dreamer run failed', { character, mode, err });
   }
+}
 
-  const parsed = parseDreamerResponse(response.text);
-  if (!parsed) {
-    logger.error('Dreamer response parse failed; files left unchanged', { character, mode });
-    return;
-  }
-
-  await writeSoul(character, parsed.soul);
-  await writeMemory(character, parsed.memory);
-
-  logger.info('Dream completed', { character, mode, soulLen: parsed.soul.length, memoryLen: parsed.memory.length });
+function startDream(character: string, mode: DreamMode, transcript?: ModelMessage[]): Promise<void> {
+  const promise = runDream(character, mode, transcript).finally(() => {
+    if (inFlightDreams.get(character) === promise) {
+      inFlightDreams.delete(character);
+    }
+    const queue = pendingDreams.get(character);
+    if (queue && queue.length > 0) {
+      const next = queue.shift()!;
+      if (queue.length === 0) {
+        pendingDreams.delete(character);
+      }
+      startDream(character, next.mode, next.transcript);
+    }
+  });
+  inFlightDreams.set(character, promise);
+  return promise;
 }
 
 export async function dream(
@@ -140,17 +163,25 @@ export async function dream(
   mode: DreamMode,
   transcript?: ModelMessage[]
 ): Promise<void> {
-  const existing = inFlightDreams.get(character);
-  if (existing) {
-    logger.info('Dream already in flight for character; skipped', { character, mode });
+  if (inFlightDreams.has(character)) {
+    const queue = pendingDreams.get(character) ?? [];
+    if (mode === 'consolidate') {
+      const last = queue[queue.length - 1];
+      if (last?.mode === 'refresh') {
+        last.mode = 'consolidate';
+        last.transcript = transcript;
+        logger.info('Dream queued: refresh superseded by consolidate', { character });
+      } else {
+        queue.push({ mode, transcript });
+        logger.info('Dream queued: consolidate behind in-flight dream', { character });
+      }
+    } else {
+      queue.push({ mode, transcript });
+      logger.info('Dream queued: refresh behind in-flight dream', { character });
+    }
+    pendingDreams.set(character, queue);
     return;
   }
 
-  const promise = runDream(character, mode, transcript).finally(() => {
-    if (inFlightDreams.get(character) === promise) {
-      inFlightDreams.delete(character);
-    }
-  });
-  inFlightDreams.set(character, promise);
-  await promise;
+  await startDream(character, mode, transcript);
 }

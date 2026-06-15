@@ -3,7 +3,11 @@
  * Returns null if either block is missing.
  */
 export function parseDreamerResponse(response: string): { soul: string; memory: string } | null {
-  const match = response.match(
+  const normalized = response
+    .replace(/^```[a-zA-Z]*\n?/, '')
+    .replace(/\n?```$/, '')
+    .trim();
+  const match = normalized.match(
     /<!--\s*SOUL\.md\s*-->\s*([\s\S]*?)\s*<!--\s*MEMORY\.md\s*-->\s*([\s\S]*?)$/
   );
   if (!match) return null;
