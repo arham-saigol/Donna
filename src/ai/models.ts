@@ -1,49 +1,60 @@
 import { createOpenAI } from '@ai-sdk/openai';
-import { createOpenRouter } from '@openrouter/ai-sdk-provider';
+import { createDeepSeek } from '@ai-sdk/deepseek';
 import { createGateway } from 'ai';
-import { requireEnv } from '../config.js';
+import { env, requireEnv } from '../config.js';
 
-const gatewayProvider = createGateway({
-  apiKey: requireEnv('AI_GATEWAY_API_KEY'),
-});
+let gatewayProvider: ReturnType<typeof createGateway> | null = null;
+function getGatewayProvider() {
+  if (!gatewayProvider) {
+    gatewayProvider = createGateway({
+      apiKey: requireEnv('AI_GATEWAY_API_KEY'),
+    });
+  }
+  return gatewayProvider;
+}
 
-const openrouter = createOpenRouter({
-  apiKey: requireEnv('OPENROUTER_API_KEY'),
-});
+let directDeepSeekProvider: ReturnType<typeof createDeepSeek> | null = null;
+function getDirectDeepSeekProvider() {
+  const key = env('DEEPSEEK_API_KEY');
+  if (!key) return null;
+  if (!directDeepSeekProvider) {
+    directDeepSeekProvider = createDeepSeek({ apiKey: key });
+  }
+  return directDeepSeekProvider;
+}
 
-const openrouterProvider = (modelId: string) => openrouter.chat(modelId);
-
-const stepfunProvider = createOpenAI({
-  apiKey: requireEnv('STEPFUN_API_KEY'),
-  baseURL: 'https://api.stepfun.ai/v1',
-});
+let stepfunProvider: ReturnType<typeof createOpenAI> | null = null;
+function getStepfunProvider() {
+  if (!stepfunProvider) {
+    stepfunProvider = createOpenAI({
+      apiKey: requireEnv('STEPFUN_API_KEY'),
+      baseURL: 'https://api.stepfun.ai/v1',
+    });
+  }
+  return stepfunProvider;
+}
 
 export function getProModel() {
   // Gateway model ID format: creator/model-name
-  return gatewayProvider.languageModel('deepseek/deepseek-v4-pro');
+  return getGatewayProvider().languageModel('deepseek/deepseek-v4-pro');
 }
 
 export function getDeepseekV4ProModel() {
-  return gatewayProvider.languageModel('deepseek/deepseek-v4-pro');
+  return getGatewayProvider().languageModel('deepseek/deepseek-v4-pro');
 }
 
 export function getDeepseekV4FlashModel() {
-  return gatewayProvider.languageModel('deepseek/deepseek-v4-flash');
-}
-
-export function getNexN2ProModel() {
-  return openrouterProvider('nex-agi/nex-n2-pro:free');
+  return getGatewayProvider().languageModel('deepseek/deepseek-v4-flash');
 }
 
 export function getStepfun37FlashModel() {
-  return stepfunProvider('step-3.7-flash');
+  return getStepfunProvider()('step-3.7-flash');
 }
 
 export const MODEL_TYPES = [
   'Deepseek V4 Pro',
   'Deepseek V4 Flash',
   'Stepfun 3.7 Flash',
-  'Nex N2 Pro',
 ] as const;
 
 export type ModelType = (typeof MODEL_TYPES)[number];
@@ -56,9 +67,19 @@ export function getCurrentModel(type: ModelType) {
       return getDeepseekV4FlashModel();
     case 'Stepfun 3.7 Flash':
       return getStepfun37FlashModel();
-    case 'Nex N2 Pro':
-      return getNexN2ProModel();
     default:
       return getProModel();
   }
+}
+
+export function getFallbackModel(type: ModelType) {
+  const provider = getDirectDeepSeekProvider();
+  if (!provider) return null;
+  if (type === 'Deepseek V4 Pro') {
+    return provider.languageModel('deepseek-v4-pro');
+  }
+  if (type === 'Deepseek V4 Flash') {
+    return provider.languageModel('deepseek-v4-flash');
+  }
+  return null;
 }

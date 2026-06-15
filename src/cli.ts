@@ -93,7 +93,7 @@ async function setupWizard() {
   };
 
   const gatewayKey = await ask('Vercel AI Gateway API Key');
-  const openrouterKey = await ask('OpenRouter API Key');
+  const deepseekKey = await ask('DeepSeek API Key');
   const stepfunKey = await ask('StepFun API Key');
   const deepgramKey = await ask('Deepgram API Key');
   const discordToken = await ask('Discord Bot Token');
@@ -102,7 +102,7 @@ async function setupWizard() {
 
   const envLines: string[] = [];
   if (gatewayKey) envLines.push(`AI_GATEWAY_API_KEY=${gatewayKey}`);
-  if (openrouterKey) envLines.push(`OPENROUTER_API_KEY=${openrouterKey}`);
+  if (deepseekKey) envLines.push(`DEEPSEEK_API_KEY=${deepseekKey}`);
   if (stepfunKey) envLines.push(`STEPFUN_API_KEY=${stepfunKey}`);
   if (deepgramKey) envLines.push(`DEEPGRAM_API_KEY=${deepgramKey}`);
   if (discordToken) envLines.push(`DISCORD_BOT_TOKEN=${discordToken}`);

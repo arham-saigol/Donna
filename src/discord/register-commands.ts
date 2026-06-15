@@ -57,7 +57,7 @@ const COMMANDS: RESTPutAPIApplicationCommandsJSONBody = [
         type: ApplicationCommandOptionType.String,
         name: 'level',
         description: 'Reasoning level',
-        required: true,
+        required: false,
         choices: [
           { name: 'low', value: 'low' },
           { name: 'medium', value: 'medium' },
@@ -79,7 +79,6 @@ const COMMANDS: RESTPutAPIApplicationCommandsJSONBody = [
           { name: 'Deepseek V4 Pro', value: 'Deepseek V4 Pro' },
           { name: 'Deepseek V4 Flash', value: 'Deepseek V4 Flash' },
           { name: 'Stepfun 3.7 Flash', value: 'Stepfun 3.7 Flash' },
-          { name: 'Nex N2 Pro', value: 'Nex N2 Pro' },
         ],
       },
     ],
