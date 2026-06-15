@@ -38,6 +38,10 @@ const COMMANDS: RESTPutAPIApplicationCommandsJSONBody = [
     description: "Read the active character's SOUL.md",
   },
   {
+    name: 'memory',
+    description: "Read the active character's MEMORY.md",
+  },
+  {
     name: 'new',
     description: 'Start a new session with the current character',
   },

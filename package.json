@@ -10,7 +10,8 @@
   "scripts": {
     "build": "tsc",
     "dev": "tsx src/cli.ts",
-    "start": "node dist/daemon.js"
+    "start": "node dist/daemon.js",
+    "test": "tsx --test src/**/*.test.ts"
   },
   "engines": {
     "node": ">=20"

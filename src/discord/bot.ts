@@ -12,9 +12,12 @@ import {
   initAgent,
   setGlobalModel,
   setGlobalReasoning,
+  getSessions,
 } from '../ai/agent.js';
+import { startInactivityWatcher } from '../ai/inactivity.js';
 import { createCharacter, switchCharacter, getActiveCharacter, deleteCharacter, clearActiveCharacter } from '../character/manager.js';
 import { readSoul } from '../character/soul.js';
+import { readMemory } from '../character/memory-file.js';
 import { logger } from '../logger.js';
 import type { Attachment, Thread, Message } from 'chat';
 
@@ -192,6 +195,20 @@ export async function startBot() {
     await event.channel.post(soul ?? 'SOUL.md is empty.');
   });
 
+  bot.onSlashCommand('/memory', async (event) => {
+    if (!(await requirePairedUser(event.user.userId))) {
+      await event.channel.post('Unauthorized.');
+      return;
+    }
+    const active = await getActiveCharacter();
+    if (!active) {
+      await event.channel.post('No active character.');
+      return;
+    }
+    const memory = await readMemory(active);
+    await event.channel.post(memory ?? 'MEMORY.md is empty.');
+  });
+
   bot.onSlashCommand('/new', async (event) => {
     if (!(await requirePairedUser(event.user.userId))) {
       await event.channel.post('Unauthorized.');
@@ -256,7 +273,7 @@ export async function startBot() {
       }
       const active = await getActiveCharacter();
       if (active === name) {
-        clearAllSessions();
+        await clearAllSessions({ skipDreamsFor: [name] });
         await clearActiveCharacter();
       }
       await event.channel.post(`Bot **${name}** has been permanently deleted.`);
@@ -277,6 +294,8 @@ export async function startBot() {
   if (active) {
     initAgent(active);
   }
+
+  startInactivityWatcher({ getSessions });
 
   const discord = bot.getAdapter('discord') as DiscordAdapter;
 
