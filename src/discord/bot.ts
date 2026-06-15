@@ -12,8 +12,12 @@ import {
   initAgent,
   setGlobalModel,
   setGlobalReasoning,
+  getGlobalModel,
+  getGlobalReasoning,
+  getReasoningOptions,
   getSessions,
   clearAgent,
+  type ReasoningLevel,
 } from '../ai/agent.js';
 import { startInactivityWatcher } from '../ai/inactivity.js';
 import { createCharacter, switchCharacter, getActiveCharacter, deleteCharacter, clearActiveCharacter } from '../character/manager.js';
@@ -238,11 +242,39 @@ export async function startBot() {
       return;
     }
     const level = event.text.trim().toLowerCase();
-    if (!['low', 'medium', 'high'].includes(level)) {
-      await event.channel.post('Usage: /reasoning [low|medium|high]');
+    const model = getGlobalModel();
+    const current = getGlobalReasoning();
+    const reasoningInfo = getReasoningOptions(model);
+
+    if (!level) {
+      if (!reasoningInfo) {
+        await event.channel.post(
+          `Current reasoning: **${current}** on **${model}**. Reasoning is not supported on this model.`
+        );
+      } else {
+        const list = reasoningInfo.levels
+          .map((l) => `**${l}** (${reasoningInfo.mapping[l]})`)
+          .join(', ');
+        await event.channel.post(
+          `Current reasoning: **${current}** on **${model}**. Available options: ${list}.`
+        );
+      }
       return;
     }
-    setGlobalReasoning(level as 'low' | 'medium' | 'high');
+
+    if (!reasoningInfo) {
+      await event.channel.post(`Reasoning is not supported on **${model}**.`);
+      return;
+    }
+
+    if (!reasoningInfo.levels.includes(level as ReasoningLevel)) {
+      await event.channel.post(
+        `Invalid reasoning level. Valid options for **${model}**: ${reasoningInfo.levels.join(', ')}.`
+      );
+      return;
+    }
+
+    setGlobalReasoning(level as ReasoningLevel);
     await event.channel.post(`Reasoning set to **${level}**.`);
   });
 

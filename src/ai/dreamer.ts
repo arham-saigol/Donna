@@ -1,5 +1,5 @@
-import { generateText, type JSONValue, type ModelMessage } from 'ai';
-import { getProModel } from './models.js';
+import { generateText, type JSONValue, type LanguageModel, type ModelMessage } from 'ai';
+import { getFallbackModel, getProModel } from './models.js';
 import { parseDreamerResponse } from './dreamer-parser.js';
 import { readSoul, isSoulEmpty, writeSoul } from '../character/soul.js';
 import { readMemory, writeMemory, isMemoryEmpty } from '../character/memory-file.js';
@@ -39,6 +39,45 @@ Return your response in exactly this format. No prose outside these blocks:
 
 const inFlightDreams = new Map<string, Promise<void>>();
 const pendingDreams = new Map<string, Array<{ mode: DreamMode; transcript?: ModelMessage[] }>>();
+
+function withDeepSeekFallbackHint(error: unknown): Error {
+  const hint = 'Set DEEPSEEK_API_KEY to enable the fallback.';
+  if (error instanceof Error) {
+    if (!error.message.includes(hint)) {
+      error.message = `${error.message} ${hint}`;
+    }
+    return error;
+  }
+  return new Error(`${String(error)} ${hint}`);
+}
+
+async function generateWithFallback(
+  primaryModel: LanguageModel | null,
+  options: Omit<Parameters<typeof generateText>[0], 'model'>
+): Promise<Awaited<ReturnType<typeof generateText>>> {
+  if (!primaryModel) {
+    const fallbackModel = getFallbackModel('Deepseek V4 Pro');
+    if (!fallbackModel) {
+      throw new Error(
+        'Missing required environment variable: AI_GATEWAY_API_KEY. Set DEEPSEEK_API_KEY to enable the fallback.'
+      );
+    }
+    return await generateText({ ...options, model: fallbackModel } as Parameters<typeof generateText>[0]);
+  }
+
+  try {
+    return await generateText({ ...options, model: primaryModel } as Parameters<typeof generateText>[0]);
+  } catch (error) {
+    const fallbackModel = getFallbackModel('Deepseek V4 Pro');
+    if (!fallbackModel) {
+      throw withDeepSeekFallbackHint(error);
+    }
+    logger.warn('Dreamer primary model failed; retrying with DeepSeek fallback', {
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return await generateText({ ...options, model: fallbackModel } as Parameters<typeof generateText>[0]);
+  }
+}
 
 function formatTranscript(messages: ModelMessage[]): string {
   return messages
@@ -112,8 +151,7 @@ async function runDream(character: string, mode: DreamMode, transcript: ModelMes
 
     let response: Awaited<ReturnType<typeof generateText>>;
     try {
-      response = await generateText({
-        model: getProModel(),
+      response = await generateWithFallback(getProModel(), {
         system: DREAMER_SYSTEM_PROMPT,
         prompt: userMessage,
         providerOptions: {
